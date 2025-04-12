@@ -1,0 +1,110 @@
+replicaCount: 2
+
+image:
+  repository: mongo
+  pullPolicy: IfNotPresent
+  tag: "8.0.5"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+
+podLabels: {}
+
+podSecurityContext: {}
+  
+securityContext: {}
+
+service:  
+  type: None
+  port: 27017
+  targetPort: 27017
+# service:  
+#   type: ClusterIP
+#   port: 27017
+#   targetPort: 27017
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    
+  hosts:
+    - host: mongo.dev
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  
+resources: {}
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "sauser"
+
+# livenessProbe:
+#   httpGet:
+#     path: /
+#     port: http
+# readinessProbe:
+#   httpGet:
+#     path: /
+#     port: http
+livenessProbe:
+  exec:
+    command: ["mongosh", "--eval", "db.runCommand('ping').ok"]
+  initialDelaySeconds: 10
+  timeoutSeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  exec:
+    command: ["mongosh", "--eval", "db.runCommand('ping').ok"]
+  initialDelaySeconds: 5
+  timeoutSeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+volumes: []
+
+volumeMounts: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClassName: "hostpath"
+
+replicaSetName: rs0
+auth:
+  enabled: false
+  keyFilePath: /etc/secrets/mongo-keyfile
+
+
+env:
+  DATEBASE_NAME: "dev"
+  DATABASE_USER: "admin"
+  DATABASE_PASSWORD: "adminpassword"
+  REPLICA_SET_KEY: "replicaSetKey123"
+

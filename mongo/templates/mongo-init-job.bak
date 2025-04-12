@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}-mongo-init"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-install
+    # "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      containers:
+        - name: mongo-init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          command:
+  - sh
+  - -c
+  - |
+    echo "Waiting for Mongo to become primary..."
+
+    until mongosh "mongodb://{{ .Release.Name }}-0.{{ .Release.Name }}.{{ .Release.Namespace }}.svc.cluster.local:27017" --quiet --eval "rs.isMaster().ismaster" | grep true > /dev/null 2>&1; do
+      echo "Mongo not primary yet, retrying..."
+      sleep 2
+    done
+
+    echo "Creating admin user and database..."
+    mongosh "mongodb://{{ .Release.Name }}-0.{{ .Release.Name }}.{{ .Release.Namespace }}.svc.cluster.local:27017" <<EOF
+      use admin
+      db.createUser({
+        user: "$MONGO_USER",
+        pwd: "$MONGO_PASSWORD",
+        roles: [ { role: "root", db: "admin" } ]
+      })
+EOF
+          env:
+            - name: MONGO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mongo-secret
+                  key: MONGO_USER
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mongo-secret
+                  key: MONGO_PASSWORD
+      restartPolicy: OnFailure

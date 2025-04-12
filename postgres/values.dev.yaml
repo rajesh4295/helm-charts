@@ -1,0 +1,98 @@
+replicaCount: 1
+
+image:
+  repository: postgres
+  pullPolicy: IfNotPresent
+  tag: "17.3"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+
+podLabels: {}
+
+podSecurityContext: {}
+  
+securityContext: {}
+
+service:  
+  type: ClusterIP
+  port: 5432
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    
+  hosts:
+    - host: postsgres.qa
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  
+resources: {}
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "pgsauser"
+
+# livenessProbe:
+#   httpGet:
+#     path: /
+#     port: http
+# readinessProbe:
+#   httpGet:
+#     path: /
+#     port: http
+livenessProbe:
+  exec:
+    command: ["pg_isready", "-U", "postgres"]
+  initialDelaySeconds: 10
+  timeoutSeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  exec:
+    command: ["pg_isready", "-U", "postgres"]
+  initialDelaySeconds: 5
+  timeoutSeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+volumes: []
+
+volumeMounts: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClassName: "hostpath"
+
+env:
+  DATEBASE_NAME: "test"
+  DATABASE_USER: "admin"
+  DATABASE_PASSWORD: "adminpassword"
+

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "mongo.fullname" . }}
+  labels:
+    {{- include "mongo.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "mongo.fullname" . }}
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mongo.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mongo.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          command: ["mongod"]
+          args:
+            - "--replSet"
+            - "{{ .Values.replicaSetName }}"
+            - "--bind_ip_all"
+            {{- if .Values.auth.enabled }}
+            - "--auth"
+            - "--keyFile={{ .Values.auth.keyFilePath }}"
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      # initContainers:
+      #   - name: init-mongo-user
+      #     image: mongo
+      #     command: ["/bin/sh"]
+      #     args:
+      #     - "-c"
+      #     - |
+      #       echo "Waiting for Mongo to become available..."
+      #       until mongosh --eval "db.runCommand({ ping: 1 })" > /dev/null 2>&1; do
+      #         echo "Mongo not ready, retrying..."
+      #         sleep 2
+      #       done
+
+      #       echo "Mongo is ready. Creating user..."
+      #       mongosh --eval "
+      #         db.getSiblingDB('admin').createUser({
+      #           user: '$MONGO_USER',
+      #           pwd: '$MONGO_PASSWORD',
+      #           roles: [{ role: 'root', db: 'admin' }]
+      #         });
+      #       "
+          env:
+            - name: MONGO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mongo-secret
+                  key: MONGO_USER
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mongo-secret
+                  key: MONGO_PASSWORD
+            - name: MONGO_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Release.Name }}-mongo-config
+                  key: MONGO_DB
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          volumeMounts:
+            - name: mongo-storage
+              mountPath: /data/db
+            - name: mongo-keyfile
+              mountPath: /etc/secrets
+              readOnly: true
+      volumes:
+        - name: mongo-keyfile
+          secret:
+            secretName: {{ .Release.Name }}-keyfile
+            defaultMode: 0400
+
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size | default "5Gi" }}
+        storageClassName: {{ .Values.persistence.storageClass | quote }}
