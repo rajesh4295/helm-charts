@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mongo-deploy.fullname" . }}
+  labels:
+    {{- include "mongo-deploy.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "mongo-deploy.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: monogo-db-0
+      port: 27017
+    - name: monogo-db-1
+      port: 27018
+    - name: monogo-db-2
+      port: 27019
+  type: LoadBalancer

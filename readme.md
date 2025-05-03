@@ -23,7 +23,7 @@
 
 1. `helm uninstall postgres-<env> -n <namespace>`
 
-# Mongo DB
+# Mongo DB with ReplicaSet
 **Install helm release**
 
 1. `./deployMongo.sh <env> <namespace>`
@@ -42,6 +42,20 @@
     `./initMongoDB.sh mongo-dev-0 app`
     5. **[With Credential]** Open MongoDB Compass and connect with
     `mongodb://admin:adminpassword@localhost:27018/?directConnection=true&authSource=dev`
+
+**Uninstall helm release**
+
+1. `helm uninstall mongo-<env> -n <namespace>`
+
+# Mongo DB with Deployment
+**Install helm release**
+
+1. `./deployMongoDeployment.sh <env> <namespace>`
+
+1. `./initMongoDeploymentReplica.sh <env> <namespace> <podname>`
+2. Connect with MongoCompass
+    3. **[Without Credential]** Open MongoDB Compass and connect with
+    `mongodb://localhost:27017,localhost:27018,localhost:27019`
 
 **Uninstall helm release**
 

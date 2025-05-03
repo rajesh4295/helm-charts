@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mongo-deploy.fullname" . }}
+  labels:
+    {{- include "mongo-deploy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mongo-deploy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mongo-deploy.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mongo-deploy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+      {{- range .Values.volumes }}
+        - name: {{ .name }}
+          hostPath:
+            path: {{ .path }}
+            type: DirectoryOrCreate
+      {{- end }}
+      containers:
+        {{- range .Values.containers }}
+          - name: {{ .name }}
+            image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
+            imagePullPolicy: {{ $.Values.image.pullPolicy }}
+            command: ["mongod"]
+            args:
+              - "--dbpath=/data/db"
+              - "--bind_ip"
+              - "0.0.0.0"
+              - "--port"
+              - "{{ .port }}"
+              - "--replSet"
+              - "rs0"
+            ports:
+              - name: mongo-port
+                containerPort: {{ .port }}
+            livenessProbe:
+              {{- toYaml $.Values.livenessProbe | nindent 14 }}
+            readinessProbe:
+              {{- toYaml $.Values.readinessProbe | nindent 14 }}
+            resources:
+              {{- toYaml $.Values.resources | nindent 14 }}
+            volumeMounts:
+              - name: {{ .volume }}
+                mountPath: /data/db
+          {{- end }}

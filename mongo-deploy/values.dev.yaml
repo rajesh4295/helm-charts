@@ -1,9 +1,9 @@
 replicaCount: 1
 
 image:
-  repository: postgres
+  repository: mongo
   pullPolicy: IfNotPresent
-  tag: "17.3"
+  tag: "8.0.5"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -17,9 +17,33 @@ podSecurityContext: {}
   
 securityContext: {}
 
+containers:
+  - name: mongo-db-0
+    port: 27017
+    volume: mongo-vol-0
+  - name: mongo-db-1
+    port: 27018
+    volume: mongo-vol-1
+  - name: mongo-db-2
+    port: 27019
+    volume: mongo-vol-2
+
+volumes:
+  - name: mongo-vol-0
+    path: /run/desktop/mnt/host/c/tmp/mongo1
+  - name: mongo-vol-1
+    path: /run/desktop/mnt/host/c/tmp/mongo2
+  - name: mongo-vol-2
+    path: /run/desktop/mnt/host/c/tmp/mongo3
+
 service:  
-  type: ClusterIP
-  port: 5432
+  type: None
+  port: 27017
+  targetPort: 27017
+# service:  
+#   type: ClusterIP
+#   port: 27017
+#   targetPort: 27017
 
 ingress:
   enabled: false
@@ -27,7 +51,7 @@ ingress:
   annotations: {}
     
   hosts:
-    - host: postsgres.qa
+    - host: mongo.dev
       paths:
         - path: /
           pathType: ImplementationSpecific
@@ -44,7 +68,7 @@ serviceAccount:
   annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
-  name: "pgsauser"
+  name: "mongosauser"
 
 # livenessProbe:
 #   httpGet:
@@ -56,7 +80,7 @@ serviceAccount:
 #     port: http
 livenessProbe:
   exec:
-    command: ["pg_isready", "-U", "postgres"]
+    command: ["mongosh", "--eval", "db.runCommand('ping').ok"]
   initialDelaySeconds: 10
   timeoutSeconds: 5
   periodSeconds: 10
@@ -64,7 +88,7 @@ livenessProbe:
 
 readinessProbe:
   exec:
-    command: ["pg_isready", "-U", "postgres"]
+    command: ["mongosh", "--eval", "db.runCommand('ping').ok"]
   initialDelaySeconds: 5
   timeoutSeconds: 5
   periodSeconds: 10
@@ -76,7 +100,6 @@ autoscaling:
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80
 
-volumes: []
 
 volumeMounts: []
 
@@ -91,8 +114,15 @@ persistence:
   size: 1Gi
   storageClassName: "hostpath"
 
+replicaSetName: rs0
+auth:
+  enabled: false
+  keyFilePath: /etc/secrets/mongo-keyfile
+
+
 env:
-  DATEBASE_NAME: "test"
+  DATEBASE_NAME: "dev"
   DATABASE_USER: "admin"
   DATABASE_PASSWORD: "adminpassword"
+  REPLICA_SET_KEY: "replicaSetKey123"
 
